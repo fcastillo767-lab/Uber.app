@@ -1,27 +1,67 @@
-# Uber Finanzas 1.0
+Biblioteca
+/
+build-apk.yml
 
-Aplicación Flutter local para registrar viajes, gastos y ganancia neta diaria.
 
-## Funciones incluidas
-- Registro de ingresos por viaje.
-- Registro de gastos por categoría.
-- Resumen diario de ingresos, gastos y ganancia neta.
-- Meta diaria y progreso.
-- Historial del día.
-- Eliminación de movimientos deslizando hacia la izquierda.
-- Persistencia local con SQLite.
+name: Generar APK Android
 
-## Cómo ejecutar
-1. Instalar Flutter estable y Android Studio.
-2. Abrir esta carpeta en VS Code o Android Studio.
-3. Ejecutar:
-   ```bash
-   flutter pub get
-   flutter run
-   ```
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
 
-## Generar APK
-```bash
-flutter build apk --release
-```
-El APK se crea en `build/app/outputs/flutter-apk/app-release.apk`.
+permissions:
+  contents: read
+
+jobs:
+  generar-apk:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Instalar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Instalar Flutter estable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Preparar proyecto
+        run: |
+          test -f uber_finanzas_source_v1.zip
+          rm -rf app
+          mkdir app
+          unzip -o uber_finanzas_source_v1.zip -d app
+          cd app
+          flutter create --platforms=android --project-name uber_finanzas --org com.fcastillo.uberfinanzas .
+
+      - name: Descargar dependencias
+        run: |
+          cd app
+          flutter pub get
+
+      - name: Analizar código
+        run: |
+          cd app
+          flutter analyze
+
+      - name: Compilar APK instalable
+        run: |
+          cd app
+          flutter build apk --release
+
+      - name: Guardar APK para descargar
+        uses: actions/upload-artifact@v4
+        with:
+          name: Uber-Finanzas-APK
+          path: app/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
